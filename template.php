@@ -95,41 +95,30 @@ function jjamerson_lc_preprocess_page(&$variables) {
     }
   }
 
+	// jsong
+	// resizing the front page .front-block
+	// add "Full list" text on front page schedule block
   if (drupal_is_front_page() ) {
-    //drupal_add_js('//maps.googleapis.com/maps/api/js?libraries=geometry', array('type'  => 'external'));
-
-    // VideoJS components:
-    //drupal_add_js('//vjs.zencdn.net/4.12/video.js', array('type'  => 'external', 'scope' => 'footer'));
-    //drupal_add_css('//vjs.zencdn.net/4.12/video-js.css', array('type'  => 'external'));
-
-    /* inline JS for aligning <div> height matches with other divs, compatible with all major browsers, by jsong */
-    /* on click attached to the selected blocks to make the whole area is clickable, by jsong */
-    /* place Recent Acquisition and Feature blocks before the social buttons on mobile phone (< 479) */
-    drupal_add_js('
-			jQuery(window).bind("load resize",function(e){
-				var $bcmW = jQuery(e.target).width();
-				if($bcmW > 767){
-					var $t = jQuery(".front-block.top-resources");
-					var $a = jQuery(".front-block.services");
-					var $th = (($a.outerHeight() + $a.offset().top) - $t.offset().top)+"px";
-					$t.height($th);
-				}else if(($bcmW < 767) && ($bcmW > 479)){
-					var $t = jQuery(".front-block.top-resources");
-					var $a = jQuery(".front-block.libguides");
-					var $th = (($a.outerHeight() + $a.offset().top) - $t.offset().top)+"px";
-					$t.height($th);
-				}else if($bcmW < 479){
-					jQuery("#block-block-20").after(jQuery("#block-block-27"));
-					jQuery("#block-block-27").after(jQuery("#block-views-b3ece016db0169908c14ac469f1bacd4"));
+		drupal_add_js('jQuery(document).ready(function($){
+			var frontblocks = $(".front-block");
+			var n = frontblocks.length;
+			var w = $(document).width();
+			if(w > 873){
+				if(n == 8){
+					$(".home-block-7").width("40%");
+					$(".home-block-8").width("40%");
+					return;
 				}
-			});
+				if(n == 9 && ($(".home-block-5").length || $(".home-block-6").length)){
+					$(".home-block-7").width("31%");
+					$(".home-block-8").width("31%");
+					return;
+				}
+			}
 
-			jQuery(document).ready(function(){
-				jQuery("#block-block-12, #block-block-25, #block-block-13, #block-block-11, #block-block-20, #block-block-16, #block-block-10, #block-block-17, #block-block-18, #block-block-26, #block-block-27, #block-block-28").click(function(e){
-					window.location.href = jQuery(this).find("a").attr("href");
-				});
-			});
-			', 'inline');
+			$("body.front").find("caption > a").append("&nbsp;&raquo;&nbsp<span style=\"font-size:70%\">Full list</span>");
+
+		});', 'inline');
   }
 
   /* Allows you to use node-type, and node ID base page templates: */
@@ -258,6 +247,19 @@ function jjamerson_lc_preprocess_page(&$variables) {
       $variables['page']['header'] += $header_copy_array;
     }
   }
+	
+	// jsong
+	// quick dirty way of redirecting login required page to Onelogin site.
+	// to-do: find the better way of achiving this function.
+	//dpm($variables['node']->type);
+	if(node_is_page($variables['node']) && !user_is_logged_in()){
+		$nodeType = $variables['node']->type;
+		if($nodeType == 't_individual' || $nodeType == 't_class' || $nodeType == 't_core' || $nodeType == 'webform'){
+			$dest = drupal_get_destination();
+			drupal_goto('https://learningcenter.berklee.edu/onelogin_saml/sso?destination='.$dest['destination']);
+		}
+	}
+	
 }
 
 function jjamerson_lc_process_page(&$variables) {
@@ -332,7 +334,7 @@ function jjamerson_lc_preprocess_html(&$variables) {
     if ( drupal_get_path_alias() === $site_section->field_base_url['und'][0]['value'] ) {
       $variables['head_title'] = $site_section->name;
       if ( empty($site_section->field_standalone['und'][0]['value']) ) {
-        $variables['head_title'] .= ' | Stan Getz Library';
+        $variables['head_title'] .= ' | Learning Center';
       }
     } else {
       if ( isset($site_section->field_standalone['und'][0]['value']) && $site_section->field_standalone['und'][0]['value'] ) {
@@ -343,7 +345,7 @@ function jjamerson_lc_preprocess_html(&$variables) {
 
   /* Override title on front page, because for some reason a pipe is being inserted into it */
   if ( $variables['is_front'] ) {
-    $variables['head_title'] = 'Stan Getz Library @ Berklee College of Music';
+    $variables['head_title'] = 'Learning Center @ Berklee College of Music';
   }
 
   /* Add classes related to workbench moderation */
@@ -782,45 +784,4 @@ function jjamerson_lc_menu_link($variables) {
 
   $link = l($link_text . $description, $href, $options);
   return '<li' . drupal_attributes($element['#attributes']) . '>' . $link . $sub_menu . "</li>\n";
-}
-
-function jjamerson_lc_apachesolr_search_mlt_recommendation_block($vars) {
-  if(isset($vars['delta']) && isset($vars['docs'])) {
-    switch($vars['delta']) {
-      case 'mlt-002':
-        $renderable = array(
-          '#theme' => 'berklee_solr_related_content_related_news',
-          '#docs' => $vars['docs'],
-        );
-        return drupal_render($renderable);
-      case 'mlt-003':
-        $renderable = array(
-          '#theme' => 'berklee_solr_related_content_related_events',
-          '#docs' => $vars['docs'],
-        );
-        return drupal_render($renderable);
-    }
-  }
-}
-
-/**
- * Implements hook_form_views_exposed_form_alter().
- *
- */
-function jjamerson_lc_form_views_exposed_form_alter(&$form, &$form_state) {
-
-	// about-us/services/ill-submissions page,
-	// auto focus to "by Request Identifier filter field
-	// taget to _blank to the form
-	if($form['#id'] == 'views-exposed-form-submission-ill-data-page'){
-		$form['#attributes']['target'] = '_blank';
-		drupal_add_js('
-			jQuery(document).ready(function(){
-				jQuery("#edit-data").focus();
-			});
-		','inline');
-
-	}
-
-// /dsm($form);
 }
